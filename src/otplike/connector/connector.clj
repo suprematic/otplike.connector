@@ -11,41 +11,6 @@
 ;; ====================================================================
 
 
-#_(defn- reg-props* [{:keys [node->props prop->pids] :as state} pid props]
-    (let [node->props (update node->props pid merge props)
-          prop->pids (reduce
-                       (fn [acc p]
-                         (update acc p #(conj (or % #{}) pid)))
-                       prop->pids
-                       props)
-          state (assoc state
-                  :node->props node->props
-                  :prop->pids prop->pids)]
-      (notify-props state ::prop-set pid props)))
-
-
-(defn- unreg-props* [{:keys [pid->props prop->pids] :as state} node-pid props]
-  (let [pid-props (apply dissoc (pid->props node-pid) props)
-        pid->props (if (empty? pid-props)
-                     (dissoc pid->props node-pid)
-                     (assoc pid->props node-pid pid-props))
-        prop->pids (reduce
-                     (fn [acc p]
-                       (let [prop-pids (disj (acc p) node-pid)]
-                         (if (empty? prop-pids)
-                           (dissoc acc p)
-                           (assoc acc p prop-pids))))
-                     prop->pids
-                     props)]
-    (assoc state
-      :pid->props pid->props
-      :prop->pids prop->pids)))
-
-
-(defn- unreg-all-props* [{:keys [pid->props] :as state} node-pid]
-  (unreg-props* state node-pid (keys (pid->props node-pid))))
-
-
 (defn- unreg-all-names* [{:keys [pid->names name->pid] :as state} pid]
   (let [pid-names (pid->names pid)
         name->pid (apply dissoc name->pid pid-names)]
@@ -94,7 +59,6 @@
     (-> state
       (update :node->pid dissoc node)
       (update :pid->node dissoc pid)
-      (unreg-all-props* pid)
       (unreg-all-names* pid)
       (broadcast-node-down node))
     state))

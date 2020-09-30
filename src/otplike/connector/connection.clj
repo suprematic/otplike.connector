@@ -1,13 +1,12 @@
 (ns otplike.connector.connection
   (:require
    [clojure.core.match :refer [match]]
-   [clojure.string :as str]
    [cognitect.transit :as transit]
    [defun.core :refer [defun defun-]]
    [org.httpkit.server :as http-kit]
    [otplike.connector.connector :as connector]
    [otplike.gen-server :as gs]
-   [otplike.process :as process :refer [!]]
+   [otplike.process :as process]
    [taoensso.timbre :as log])
   (:import
    [otplike.process Pid TRef]))
@@ -22,7 +21,6 @@
 
 
 (def ^:private default-pongs-missing-allowed 2)
-
 
 
 (def ^:private default-transit-write-handlers
