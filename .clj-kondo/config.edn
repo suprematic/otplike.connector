@@ -2,5 +2,7 @@
  {:unsorted-required-namespaces {:level :warning}}
 
  :lint-as
- {otplike.process/proc-defn- clojure.core/defn-
+ {defun.core/defun- clojure.core/defn-
+  defun.core/defun clojure.core/defn
+  otplike.process/proc-defn- clojure.core/defn-
   otplike.process/proc-defn clojure.core/defn}}
