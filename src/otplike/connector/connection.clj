@@ -71,20 +71,6 @@
       opts)))
 
 
-(defun- handle-command
-  ([[:register ks] state]
-   (connector/register ks)
-   state)
-
-  ([[:unregister ks] state]
-   (connector/unregister ks)
-   state)
-
-  ([[:route dest msg] state]
-   (connector/route dest msg)
-   state))
-
-
 (defn- handle-close-fn [pid]
   (fn handle-close [_event]
     (log/debug "connection closed" :node-pid pid)
@@ -154,7 +140,8 @@
 
   ([[:message [:command command]] state]
    (log/debug "got command" :command command)
-   [:noreply (handle-command command state) (:ping-timeout-ms state)])
+   (connector/command command)
+   [:noreply state (:ping-timeout-ms state)])
   
   ([[:message msg] state]
    (log/error "unrecognized message format" :message msg)

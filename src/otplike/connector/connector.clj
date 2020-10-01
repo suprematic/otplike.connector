@@ -136,6 +136,24 @@
   (reduce #(unregister-key %1 node-pid %2) state ks))
 
 
+(defun- handle-command
+  ([node-pid [:register ks] state]
+   (log/debug "registering keys" :pid node-pid :keys ks)
+   (register* state node-pid ks))
+
+  ([node-pid [:unregister ks] state]
+   (log/debug "unregistering keys" :pid node-pid :keys ks)
+   (unregister* state node-pid ks))
+
+  ([node-pid [:route dest msg] state]
+   (log/debug "routing message" :dest dest :message msg)
+   (route* state node-pid dest msg))
+
+  ([node-pid command state]
+   (log/error "unrecognized command" :pid node-pid :command command)
+   state))
+
+
 ;; ====================================================================
 ;; gen-server callbacks
 ;; ====================================================================
@@ -155,6 +173,9 @@
   ([[::connect node-pid node] state]
    (log/debug "connecting node" :pid node-pid :node node)
    [:noreply (connect* state node-pid node)])
+  ([[::command node-pid command] state]
+   (log/debug "processing command" :pid node-pid :command command)
+   [:noreply (handle-command node-pid command state)])
   ([[::register node-pid ks] state]
    (log/debug "registering items" :pid node-pid :keys ks)
    [:noreply (register* state node-pid ks)])
@@ -183,6 +204,10 @@
 
 (defn connect [node]
   (gs/cast ::server [::connect (process/self) node]))
+
+
+(defn command [command]
+  (gs/cast ::server [::command (process/self) command]))
 
 
 (defn register [items]
