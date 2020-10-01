@@ -27,6 +27,10 @@
   (! node-pid [:send [:no-route k msg]]))
 
 
+(defn- send-registered [node-pid k]
+  (! node-pid [:send [:registered k]]))
+
+
 (defn- send-unregister [node-pid k reason]
   (! node-pid [:send [:unregister k reason]]))
 
@@ -76,9 +80,11 @@
   (let [owner-node-pid (name->pid reg-name)]
     (cond
       (nil? owner-node-pid)
-      (-> state
-        (update-in [:pid->names node-pid] #(conj (or % #{}) reg-name))
-        (assoc-in [:name->pid reg-name] node-pid))
+      (do
+        (send-registered node-pid [:name reg-name])
+        (-> state
+          (update-in [:pid->names node-pid] #(conj (or % #{}) reg-name))
+          (assoc-in [:name->pid reg-name] node-pid)))
 
       (= node-pid owner-node-pid)
       state
@@ -100,8 +106,9 @@
    state))
 
 
-(defn- register* [state node-pid items]
-  (reduce #(register-key %1 node-pid %2) state items))
+;; FIXME register all the keys atomically (send one message back)
+(defn- register* [state node-pid ks]
+  (reduce #(register-key %1 node-pid %2) state ks))
 
 
 (defn- unregister-name [{:keys [name->pid] :as state} node-pid reg-name]
