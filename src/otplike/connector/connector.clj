@@ -177,10 +177,10 @@
    (log/debug "processing command" :pid node-pid :command command)
    [:noreply (handle-command node-pid command state)])
   ([[::register node-pid ks] state]
-   (log/debug "registering items" :pid node-pid :keys ks)
+   (log/debug "registering keys" :pid node-pid :keys ks)
    [:noreply (register* state node-pid ks)])
   ([[::unregister node-pid ks] state]
-   (log/debug "unregistering items" :pid node-pid :keys ks)
+   (log/debug "unregistering keys" :pid node-pid :keys ks)
    [:noreply (unregister* state node-pid ks)])
   ([[::route node-pid dest msg] state]
    (log/debug "routing message" :dest dest :message msg)

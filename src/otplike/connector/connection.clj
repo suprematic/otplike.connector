@@ -91,6 +91,26 @@
       (gs/cast pid [:message message]))))
 
 
+(defun- handle-message
+  ([[:ping payload] ({:ws ws :opts opts} :as state)]
+   (log/debug "got ping, sending pong" :payload payload)
+   (transit-send ws [:pong payload] opts)
+   [:noreply state (:ping-timeout-ms state)])
+
+  ([[:pong payload] state]
+   (log/debug "got pong" :payload payload)
+   [:noreply (assoc state :pongs-waiting 0) (:ping-timeout-ms state)])
+
+  ([[:command command] state]
+   (log/debug "got command" :command command)
+   (connector/command command)
+   [:noreply state (:ping-timeout-ms state)])
+
+  ([msg state]
+   (log/error "unrecognized message format" :message msg)
+   [:stop [:invalid-protocol msg] state]))
+
+
 (defn- start-link< [ws opts]
   (gs/start-link-ns
     [ws opts]
@@ -134,18 +154,9 @@
    (transit-send ws [:pong payload] opts)
    [:noreply state (:ping-timeout-ms state)])
 
-  ([[:message [:pong payload]] state]
-   (log/debug "got pong" :payload payload)
-   [:noreply (assoc state :pongs-waiting 0) (:ping-timeout-ms state)])
-
-  ([[:message [:command command]] state]
-   (log/debug "got command" :command command)
-   (connector/command command)
-   [:noreply state (:ping-timeout-ms state)])
-  
   ([[:message msg] state]
-   (log/error "unrecognized message format" :message msg)
-   [:stop [:invalid-protocol msg] state]))
+   (log/debug "got message" :message msg)
+   (handle-message msg state)))
 
 
 (defun handle-info
