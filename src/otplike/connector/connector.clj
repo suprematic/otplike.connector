@@ -11,14 +11,6 @@
 ;; ====================================================================
 
 
-(defn- unreg-all-names* [{:keys [pid->names name->pid] :as state} pid]
-  (let [pid-names (pid->names pid)
-        name->pid (apply dissoc name->pid pid-names)]
-    (-> state
-      (update :pid->names dissoc pid)
-      (assoc :name->pid name->pid))))
-
-
 (defn- send-message [node-pid msg]
   (! node-pid [:send [:message msg]]))
 
@@ -39,12 +31,21 @@
   (! node-pid [:send [:node-down node]]))
 
 
+(defn- unreg-all-names* [{:keys [pid->names name->pid] :as state} pid]
+  (let [pid-names (pid->names pid)
+        name->pid (apply dissoc name->pid pid-names)]
+    (-> state
+      (update :pid->names dissoc pid)
+      (assoc :name->pid name->pid))))
+
+
 (defun- route*
   ([state origin-node-pid ([:name reg-name] :as k) msg]
    (if-some [node-pid (get-in state [:name->pid reg-name])]
      (send-message node-pid msg)
      (send-no-route origin-node-pid k msg))
    state)
+
   ([state origin-node-pid ([:node node] :as k) msg]
    (if-some [node-pid (get-in state [:node->pid node])]
      (send-message node-pid msg)
@@ -173,15 +174,19 @@
   ([[::connect node-pid node] state]
    (log/debug "connecting node" :pid node-pid :node node)
    [:noreply (connect* state node-pid node)])
+
   ([[::command node-pid command] state]
    (log/debug "processing command" :pid node-pid :command command)
    [:noreply (handle-command node-pid command state)])
+
   ([[::register node-pid ks] state]
    (log/debug "registering keys" :pid node-pid :keys ks)
    [:noreply (register* state node-pid ks)])
+
   ([[::unregister node-pid ks] state]
    (log/debug "unregistering keys" :pid node-pid :keys ks)
    [:noreply (unregister* state node-pid ks)])
+
   ([[::route node-pid dest msg] state]
    (log/debug "routing message" :dest dest :message msg)
    [:noreply (route* state node-pid dest msg)]))
