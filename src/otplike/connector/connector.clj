@@ -58,7 +58,7 @@
   state)
 
 
-(defn- down [state pid]
+(defn- disconnect [state pid]
   (if-let [node (get-in state [:pid->node pid])]
     (-> state
       (update :node->pid dissoc node)
@@ -190,7 +190,7 @@
 (defun handle-info
   ([[:EXIT pid reason] state]
    (log/debug "node down" :pid pid :reason reason)
-   [:noreply (down state pid)]))
+   [:noreply (disconnect state pid)]))
 
 
 ;; ====================================================================
