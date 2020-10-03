@@ -1,5 +1,6 @@
 (ns otplike.connector.connector
   (:require
+   [clojure.core.match :refer [match]]
    [defun.core :refer [defun defun-]]
    [otplike.gen-server :as gs]
    [otplike.process :as process :refer [!]]
@@ -76,43 +77,51 @@
     (assoc-in [:pid->node node-pid] node)))
 
 
-(defn- register-name
+(defn- add-name
   [{:keys [name->pid pid->node] :as state} node-pid reg-name]
   (let [owner-node-pid (name->pid reg-name)]
     (cond
       (nil? owner-node-pid)
-      (do
-        (send-registered node-pid [:name reg-name])
-        (-> state
-          (update-in [:pid->names node-pid] #(conj (or % #{}) reg-name))
-          (assoc-in [:name->pid reg-name] node-pid)))
+      [:ok
+       (-> state
+         (update-in [:pid->names node-pid] #(conj (or % #{}) reg-name))
+         (assoc-in [:name->pid reg-name] node-pid))]
 
       (= node-pid owner-node-pid)
-      state
+      [:ok state]
 
       :else
-      (do
-        (send-unregister node-pid
-          [:name reg-name]
-          [:registered {:node (get pid->node owner-node-pid)}])
-        state))))
+      [:error [:registered {:node (get pid->node owner-node-pid)}]])))
 
 
-(defun- register-key
+(defun- add-key
   ([state node-pid [:name reg-name]]
-   (register-name state node-pid reg-name))
+   (add-name state node-pid reg-name))
 
-  ([state node-pid k]
-   (log/error "unexpected registration key" :node node-pid :key k)
-   state))
+  ([_state node-pid k]
+   (log/error "unexpected registration key format" :node node-pid :key k)
+   [:error [:invalid-key-format k]]))
 
 
-;; FIXME register all the keys atomically (send one message back)
 (defn- register* [state node-pid ks]
-  (reduce #(register-key %1 node-pid %2) state ks))
+  (loop [new-state state
+         rest-ks ks]
+    (if (empty? rest-ks)
+      (do
+        (send-registered node-pid ks)
+        new-state)
+      (let [k (first rest-ks)]
+        (match (add-key new-state node-pid k)
+          [:ok next-state]
+          (recur next-state (rest ks))
+
+          [:error reason]
+          (do
+            (send-unregister node-pid ks reason)
+            state))))))
 
 
-(defn- unregister-name [{:keys [name->pid] :as state} node-pid reg-name]
+(defn- remove-name [{:keys [name->pid] :as state} node-pid reg-name]
   (let [owner-node-pid (name->pid reg-name)]
     (cond
       (= node-pid owner-node-pid)
@@ -124,9 +133,9 @@
       state)))
 
 
-(defun- unregister-key
+(defun- remove-key
   ([state node-pid [:name reg-name]]
-   (unregister-name state node-pid reg-name))
+   (remove-name state node-pid reg-name))
 
   ([state node-pid k]
    (log/error "unexpected registration key" :node node-pid :key k)
@@ -134,7 +143,7 @@
 
 
 (defn- unregister* [state node-pid ks]
-  (reduce #(unregister-key %1 node-pid %2) state ks))
+  (reduce #(remove-key %1 node-pid %2) state ks))
 
 
 (defun- handle-command
