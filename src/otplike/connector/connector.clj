@@ -20,6 +20,10 @@
   (! node-pid [:send [:no-route k msg]]))
 
 
+(defn- send-routed [node-pid k msg dest-node]
+  (! node-pid [:send [:routed k msg dest-node]]))
+
+
 (defn- send-registered [node-pid k]
   (! node-pid [:send [:registered k]]))
 
@@ -40,18 +44,34 @@
       (assoc :name->pid name->pid))))
 
 
-(defun- route*
-  ([state origin-node-pid ([:name reg-name] :as k) msg]
+(defun- route**
+  ([state origin-node-pid ([:name reg-name] :as k) msg opts]
    (if-some [node-pid (get-in state [:name->pid reg-name])]
-     (send-message node-pid msg)
-     (send-no-route origin-node-pid k msg))
+     (do
+       (send-message node-pid msg)
+       (when (:confirm? opts)
+         (let [dest-node (get-in state [:pid->node node-pid])]
+           (send-routed origin-node-pid k msg dest-node))))
+     (when (:confirm? opts)
+       (send-no-route origin-node-pid k msg)))
    state)
 
-  ([state origin-node-pid ([:node node] :as k) msg]
+  ([state origin-node-pid ([:node node] :as k) msg opts]
    (if-some [node-pid (get-in state [:node->pid node])]
-     (send-message node-pid msg)
-     (send-no-route origin-node-pid k msg))
+     (do
+       (send-message node-pid msg)
+       (when (:confirm? opts)
+         (send-routed origin-node-pid k msg node)))
+     (when (:confirm? opts)
+       (send-no-route origin-node-pid k msg)))
    state))
+
+
+(defn- route*
+  ([state origin-node-pid k msg]
+   (route* state origin-node-pid k msg {}))
+  ([state origin-node-pid k msg opts]
+   (route** state origin-node-pid k msg opts)))
 
 
 (defn- broadcast-node-down [state node]
@@ -158,6 +178,10 @@
   ([node-pid [:route dest msg] state]
    (log/debug "routing message" :dest dest :message msg)
    (route* state node-pid dest msg))
+
+  ([node-pid [:route dest msg opts] state]
+   (log/debug "routing message" :dest dest :message msg)
+   (route* state node-pid dest msg opts))
 
   ([node-pid command state]
    (log/error "unrecognized command" :pid node-pid :command command)
