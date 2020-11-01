@@ -210,19 +210,7 @@
 
   ([[::command node-pid command] state]
    (log/debug "processing command" :pid node-pid :command command)
-   [:noreply (handle-command node-pid command state)])
-
-  ([[::register node-pid ks] state]
-   (log/debug "registering keys" :pid node-pid :keys ks)
-   [:noreply (register* state node-pid ks)])
-
-  ([[::unregister node-pid ks] state]
-   (log/debug "unregistering keys" :pid node-pid :keys ks)
-   [:noreply (unregister* state node-pid ks)])
-
-  ([[::route node-pid dest msg] state]
-   (log/debug "routing message" :dest dest :message msg)
-   [:noreply (route* state node-pid dest msg)]))
+   [:noreply (handle-command node-pid command state)]))
 
 
 (defun handle-info
@@ -246,15 +234,3 @@
 
 (defn command [command]
   (gs/cast ::server [::command (process/self) command]))
-
-
-(defn register [items]
-  (gs/cast ::server [::register (process/self) items]))
-
-
-(defn unregister [items]
-  (gs/cast ::server [::unregister (process/self) items]))
-
-
-(defn route [to msg]
-  (gs/cast ::server [::route (process/self) to msg]))
