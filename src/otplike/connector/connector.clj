@@ -198,9 +198,7 @@
    {:node->pid {}
     :pid->node {}
     :pid->names {}
-    :name->pid {}
-    :pid->props {}
-    :prop->pids {}}])
+    :name->pid {}}])
 
 
 (defun handle-cast
